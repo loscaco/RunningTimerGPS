@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#000000" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>CICLO // GPS</title>
+  <link id="manifest-link" rel="manifest" href="" />
+  <style>
+    :root {
+      --bg: #000000;
+      --surface: #0d0d0f;
+      --surface-2: #16161a;
+      --border: #242429;
+      --text: #ffffff;
+      --muted: #8e8e93;
+      --accent: #00ff88;
+      --accent-dim: rgba(0, 255, 136, 0.14);
+      --warn: #ffb800;
+      --danger: #ff3b30;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    html, body {
+      height: 100%;
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+      overflow-x: hidden;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: env(safe-area-inset-top, 12px) 16px env(safe-area-inset-bottom, 16px) 16px;
+      max-width: 520px;
+      margin: 0 auto;
+    }
+
+    /* HEADER / STATUS BAR */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 0 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .brand {
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .status-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--danger);
+      box-shadow: 0 0 8px var(--danger);
+      transition: all 0.3s ease;
+    }
+
+    .status-dot.searching {
+      background: var(--warn);
+      box-shadow: 0 0 8px var(--warn);
+    }
+
+    .status-dot.ready {
+      background: var(--accent);
+      box-shadow: 0 0 10px var(--accent);
+    }
+
+    .badges {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .badge {
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 4px 8px;
+      border-radius: 6px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .badge.active {
+      color: var(--accent);
+      border-color: rgba(0, 255, 136, 0.35);
+      background: var(--accent-dim);
+    }
+
+    .icon-btn {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    /* MAIN TELEMETRY */
+    .hero-speed {
+      text-align: center;
+      padding: 18px 0 10px 0;
+      position: relative;
+    }
+
+    .speed-value {
+      font-size: clamp(5.2rem, 23vw, 7.2rem);
+      font-weight: 800;
+      line-height: 0.92;
+      letter-spacing: -3px;
+      font-variant-numeric: tabular-nums;
+      color: var(--text);
+    }
+
+    .speed-unit {
+      font-size: 0.95rem;
+      font-weight: 700;
+      letter-spacing: 3px;
+      color: var(--accent);
+      margin-top: 6px;
+    }
+
+    .auto-pause-pill {
+      display: inline-block;
+      margin-top: 8px;
+      padding: 3px 10px;
+      border-radius: 99px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+      background: rgba(255, 184, 0, 0.16);
+      color: var(--warn);
+      border: 1px solid rgba(255, 184, 0, 0.4);
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .auto-pause-pill.visible {
+      opacity: 1;
+    }
+
+    /* METRICS GRID */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin: 8px 0;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px 14px;
+    }
+
+    .card-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .card-val {
+      font-size: 1.65rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -0.5px;
+    }
+
+    .card-sub {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-left: 3px;
+      font-weight: 600;
+    }
+
+    /* LIVE ROUTE CANVAS */
+    .route-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 10px;
+      margin: 6px 0 12px 0;
+      position: relative;
+      height: 135px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .route-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    canvas#routeCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* CONTROLS */
+    .controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      padding-top: 4px;
+    }
+
+    .btn {
+      border: none;
+      border-radius: 14px;
+      padding: 16px;
+      font-size: 1rem;
+      font-weight: 800;
+      letter-spacing: 0.8px;
+      cursor: pointer;
+      transition: transform 0.08s ease, opacity 0.2s;
+    }
+
+    .btn:active {
+      transform: scale(0.97);
+    }
+
+    .btn-primary {
+      grid-column: span 2;
+      background: var(--accent);
+      color: #000000;
+    }
+
+    .btn-primary.running {
+      background: var(--warn);
+      color: #000000;
+    }
+
+    .btn-secondary {
+      background: var(--surface-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .btn-danger {
+      background: rgba(255, 59, 48, 0.14);
+      color: var(--danger);
+      border: 1px solid rgba(255, 59, 48, 0.35);
+    }
+
+    /* MODAL HISTORIAL */
+    .modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.94);
+      z-index: 50;
+      display: none;
+      flex-direction: column;
+      padding: 20px 16px;
+      max-width: 520px;
+      margin: 0 auto;
+    }
+
+    .modal.open {
+      display: flex;
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .history-list {
+      flex: 1;
+      overflow-y: auto;
+      margin-top: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .history-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .history-meta {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    .history-stats {
+      font-size: 0.95rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .gpx-btn {
+      background: var(--accent-dim);
+      color: var(--accent);
+      border: 1px solid rgba(0, 255, 136, 0.35);
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <span id="gpsDot" class="status-dot"></span>
+      <span>CICLO // GPS</span>
+    </div>
+    <div class="badges">
+      <span id="accBadge" class="badge">GPS --m</span>
+      <span id="wakeBadge" class="badge">SCREEN</span>
+      <button id="openHistoryBtn" class="icon-btn">RUTAS</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero-speed">
+      <div id="speedVal" class="speed-value">0.0</div>
+      <div class="speed-unit">KM / H</div>
+      <div id="autoPausePill" class="auto-pause-pill">AUTO-PAUSA (DETENIDO)</div>
+    </section>
+
+    <section class="grid">
+      <div class="card">
+        <div class="card-label">Distancia</div>
+        <div><span id="distVal" class="card-val">0.00</span><span class="card-sub">km</span></div>
+      </div>
+      <div class="card">
+        <div class="card-label">Tiempo Activo</div>
+        <div><span id="timeVal" class="card-val">00:00:00</span></div>
+      </div>
+      <div class="card">
+        <div class="card-label">Vel. Promedio</div>
+        <div><span id="avgVal" class="card-val">0.0</span><span class="card-sub">km/h</span></div>
+      </div>
+      <div class="card">
+        <div class="card-label">Vel. Máxima</div>
+        <div><span id="maxVal" class="card-val">0.0</span><span class="card-sub">km/h</span></div>
+      </div>
+    </section>
+
+    <section class="route-box">
+      <div class="route-header">
+        <span>Trazo en vivo (Offline)</span>
+        <span id="pointsCount">0 pts</span>
+      </div>
+      <canvas id="routeCanvas"></canvas>
+    </section>
+  </main>
+
+  <footer class="controls">
+    <button id="startPauseBtn" class="btn btn-primary">INICIAR RUTA</button>
+    <button id="saveBtn" class="btn btn-secondary">GUARDAR</button>
+    <button id="resetBtn" class="btn btn-danger">REINICIAR</button>
+  </footer>
+
+  <!-- MODAL HISTORIAL Y EXPORTACIÓN GPX -->
+  <div id="historyModal" class="modal">
+    <div class="modal-header">
+      <strong>Historial de Recorridos</strong>
+      <button id="closeHistoryBtn" class="icon-btn">CERRAR</button>
+    </div>
+    <div id="historyList" class="history-list"></div>
+  </div>
+
+  <script>
+    // 1. MANIFEST DINÁMICO PARA INSTALACIÓN PWA
+    const manifestObj = {
+      name: "Ciclo GPS Tracker",
+      short_name: "CicloGPS",
+      start_url: "./index.html",
+      display: "standalone",
+      background_color: "#000000",
+      theme_color: "#000000",
+      icons: [{
+        src: "data:image/svg+xml;base64," + btoa('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192"><rect width="192" height="192" rx="40" fill="#000"/><circle cx="96" cy="96" r="56" fill="none" stroke="#00ff88" stroke-width="14"/><circle cx="96" cy="96" r="14" fill="#00ff88"/></svg>'),
+        sizes: "192x192",
+        type: "image/svg+xml"
+      }]
+    };
+    const manifestBlob = new Blob([JSON.stringify(manifestObj)], { type: 'application/json' });
+    document.getElementById('manifest-link').setAttribute('href', URL.createObjectURL(manifestBlob));
+
+    // REGISTRO DE SERVICE WORKER (OFFLINE)
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').catch(() => {});
+    }
+
+    // 2. ESTADO Y VARIABLES DE TELEMETRÍA
+    let isRunning = false;
+    let isAutoPaused = false;
+    let watchId = null;
+    let timerInterval = null;
+    let wakeLock = null;
+
+    let totalDistanceKm = 0;
+    let elapsedSeconds = 0;
+    let maxSpeedKmh = 0;
+    let lastValidPos = null;
+    let lastPosTime = null;
+    let routePoints = []; // {lat, lon, ele, time}
+
+    // Parámetros de filtrado GPS
+    const MAX_ACCURACY_METERS = 28; // Descarta lecturas con error > 28m
+    const MIN_MOVE_METERS = 3.5;    // Evita deriva estando quieto
+    const AUTO_PAUSE_SPEED = 2.0;   // km/h debajo de lo cual entra en auto-pausa
+
+    // Referencias DOM
+    const gpsDot = document.getElementById('gpsDot');
+    const accBadge = document.getElementById('accBadge');
+    const wakeBadge = document.getElementById('wakeBadge');
+    const speedVal = document.getElementById('speedVal');
+    const distVal = document.getElementById('distVal');
+    const timeVal = document.getElementById('timeVal');
+    const avgVal = document.getElementById('avgVal');
+    const maxVal = document.getElementById('maxVal');
+    const autoPausePill = document.getElementById('autoPausePill');
+    const pointsCount = document.getElementById('pointsCount');
+    const startPauseBtn = document.getElementById('startPauseBtn');
+    const saveBtn = document.getElementById('saveBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const canvas = document.getElementById('routeCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // 3. WAKE LOCK API (MANTENER PANTALLA ENCENDIDA)
+    async function requestWakeLock() {
+      if ('wakeLock' in navigator) {
+        try {
+          wakeLock = await navigator.wakeLock.request('screen');
+          wakeBadge.classList.add('active');
+          wakeLock.addEventListener('release', () => wakeBadge.classList.remove('active'));
+        } catch (err) {
+          wakeBadge.classList.remove('active');
+        }
+      }
+    }
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && isRunning) {
+        requestWakeLock();
+      }
+    });
+
+    // 4. FÓRMULA HAVERSINE (DISTANCIA EXACTA ENTRE COORDENADAS)
+    function haversineMeters(lat1, lon1, lat2, lon2) {
+      const R = 6371000;
+      const toRad = deg => deg * Math.PI / 180;
+      const dLat = toRad(lat2 - lat1);
+      const dLon = toRad(lon2 - lon1);
+      const a = Math.sin(dLat / 2) ** 2 +
+                Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
+    // 5. PROCESAMIENTO DE LECTURAS GPS
+    function onPositionUpdate(pos) {
+      const { latitude, longitude, accuracy, speed, altitude } = pos.coords;
+      const now = pos.timestamp || Date.now();
+
+      accBadge.textContent = `GPS ±${Math.round(accuracy)}m`;
+
+      if (accuracy > MAX_ACCURACY_METERS) {
+        gpsDot.className = 'status-dot searching';
+        return;
+      }
+      gpsDot.className = 'status-dot ready';
+
+      if (!isRunning) return;
+
+      // Cálculo de velocidad instantánea (prioriza sensor Doppler del chip GPS)
+      let currentSpeedKmh = 0;
+      if (speed !== null && speed >= 0) {
+        currentSpeedKmh = speed * 3.6;
+      } else if (lastValidPos && lastPosTime) {
+        const dtSec = (now - lastPosTime) / 1000;
+        const distM = haversineMeters(lastValidPos.lat, lastValidPos.lon, latitude, longitude);
+        if (dtSec > 0) currentSpeedKmh = (distM / dtSec) * 3.6;
+      }
+
+      // Filtro de ruido en reposo y Auto-Pausa
+      if (currentSpeedKmh < AUTO_PAUSE_SPEED) {
+        currentSpeedKmh = 0;
+        if (!isAutoPaused) {
+          isAutoPaused = true;
+          autoPausePill.classList.add('visible');
+        }
+        speedVal.textContent = '0.0';
+        lastPosTime = now;
+        return;
+      } else if (isAutoPaused) {
+        isAutoPaused = false;
+        autoPausePill.classList.remove('visible');
+      }
+
+      // Acumular distancia solo si superó el umbral de ruido
+      if (lastValidPos) {
+        const distMeters = haversineMeters(lastValidPos.lat, lastValidPos.lon, latitude, longitude);
+        // Filtro anti-saltos irreales (> 95 km/h en bicicleta)
+        if (distMeters >= MIN_MOVE_METERS && currentSpeedKmh < 95) {
+          totalDistanceKm += distMeters / 1000;
+          lastValidPos = { lat: latitude, lon: longitude };
+          lastPosTime = now;
+          routePoints.push({
+            lat: latitude,
+            lon: longitude,
+            ele: altitude || 0,
+            time: new Date(now).toISOString()
+          });
+          drawRoute();
+        }
+      } else {
+        lastValidPos = { lat: latitude, lon: longitude };
+        lastPosTime = now;
+        routePoints.push({
+          lat: latitude,
+          lon: longitude,
+          ele: altitude || 0,
+          time: new Date(now).toISOString()
+        });
+      }
+
+      if (currentSpeedKmh > maxSpeedKmh && currentSpeedKmh < 95) {
+        maxSpeedKmh = currentSpeedKmh;
+      }
+
+      updateUI(currentSpeedKmh);
+    }
+
+    function onPositionError() {
+      gpsDot.className = 'status-dot';
+      accBadge.textContent = 'SIN GPS';
+    }
+
+    // 6. ACTUALIZACIÓN DE INTERFAZ
+    function formatTime(sec) {
+      const h = Math.floor(sec / 3600).toString().padStart(2, '0');
+      const m = Math.floor((sec % 3600) / 60).toString().padStart(2, '0');
+      const s = (sec % 60).toString().padStart(2, '0');
+      return `${h}:${m}:${s}`;
+    }
+
+    function updateUI(currentSpeed = 0) {
+      speedVal.textContent = currentSpeed.toFixed(1);
+      distVal.textContent = totalDistanceKm.toFixed(2);
+      timeVal.textContent = formatTime(elapsedSeconds);
+      maxVal.textContent = maxSpeedKmh.toFixed(1);
+
+      const avg = elapsedSeconds > 0 ? (totalDistanceKm / (elapsedSeconds / 3600)) : 0;
+      avgVal.textContent = avg.toFixed(1);
+      pointsCount.textContent = `${routePoints.length} pts`;
+    }
+
+    // 7. DIBUJO DE RUTA EN CANVAS (100% OFFLINE)
+    function drawRoute() {
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * window.devicePixelRatio;
+      canvas.height = rect.height * window.devicePixelRatio;
+      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+
+      const w = rect.width;
+      const h = rect.height;
+      ctx.clearRect(0, 0, w, h);
+
+      if (routePoints.length < 2) return;
+
+      let minLat = Infinity, maxLat = -Infinity, minLon = Infinity, maxLon = -Infinity;
+      for (const p of routePoints) {
+        if (p.lat < minLat) minLat = p.lat;
+        if (p.lat > maxLat) maxLat = p.lat;
+        if (p.lon < minLon) minLon = p.lon;
+        if (p.lon > maxLon) maxLon = p.lon;
+      }
+
+      const pad = 14;
+      const spanLat = Math.max(maxLat - minLat, 0.0005);
+      const spanLon = Math.max(maxLon - minLon, 0.0005);
+      const scale = Math.min((w - pad * 2) / spanLon, (h - pad * 2) / spanLat);
+
+      const offsetX = (w - spanLon * scale) / 2;
+      const offsetY = (h - spanLat * scale) / 2;
+
+      ctx.beginPath();
+      ctx.strokeStyle = '#00ff88';
+      ctx.lineWidth = 3;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      routePoints.forEach((p, idx) => {
+        const x = offsetX + (p.lon - minLon) * scale;
+        const y = h - (offsetY + (p.lat - minLat) * scale);
+        if (idx === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+
+      // Punto actual pulsante
+      const last = routePoints[routePoints.length - 1];
+      const lx = offsetX + (last.lon - minLon) * scale;
+      const ly = h - (offsetY + (last.lat - minLat) * scale);
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(lx, ly, 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // 8. CONTROLES DE SESIÓN
+    function startTracking() {
+      if (!('geolocation' in navigator)) {
+        alert('Tu navegador no soporta geolocalización.');
+        return;
+      }
+      isRunning = true;
+      isAutoPaused = false;
+      startPauseBtn.textContent = 'PAUSAR';
+      startPauseBtn.classList.add('running');
+      requestWakeLock();
+
+      if (watchId === null) {
+        watchId = navigator.geolocation.watchPosition(onPositionUpdate, onPositionError, {
+          enableHighAccuracy: true,
+          maximumAge: 1000,
+          timeout: 10000
+        });
+      }
+
+      timerInterval = setInterval(() => {
+        if (isRunning && !isAutoPaused) {
+          elapsedSeconds++;
+          updateUI(parseFloat(speedVal.textContent));
+        }
+      }, 1000);
+    }
+
+    function pauseTracking() {
+      isRunning = false;
+      isAutoPaused = false;
+      autoPausePill.classList.remove('visible');
+      startPauseBtn.textContent = 'CONTINUAR';
+      startPauseBtn.classList.remove('running');
+      speedVal.textContent = '0.0';
+      lastValidPos = null; // Evita sumar línea recta si te mueves pausado
+      clearInterval(timerInterval);
+    }
+
+    startPauseBtn.addEventListener('click', () => {
+      if (isRunning) pauseTracking();
+      else startTracking();
+    });
+
+    resetBtn.addEventListener('click', () => {
+      if (totalDistanceKm > 0 && !confirm('¿Reiniciar los datos actuales?')) return;
+      pauseTracking();
+      totalDistanceKm = 0;
+      elapsedSeconds = 0;
+      maxSpeedKmh = 0;
+      lastValidPos = null;
+      lastPosTime = null;
+      routePoints = [];
+      startPauseBtn.textContent = 'INICIAR RUTA';
+      updateUI(0);
+      drawRoute();
+    });
+
+    // 9. GUARDAR HISTORIAL Y EXPORTAR GPX
+    saveBtn.addEventListener('click', () => {
+      if (totalDistanceKm < 0.02 && routePoints.length < 2) {
+        alert('Recorre al menos unos metros antes de guardar.');
+        return;
+      }
+      const sessions = JSON.parse(localStorage.getItem('ciclo_sessions') || '[]');
+      const avg = elapsedSeconds > 0 ? (totalDistanceKm / (elapsedSeconds / 3600)) : 0;
+      sessions.unshift({
+        id: Date.now(),
+        date: new Date().toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' }),
+        dist: totalDistanceKm.toFixed(2),
+        time: formatTime(elapsedSeconds),
+        avg: avg.toFixed(1),
+        max: maxSpeedKmh.toFixed(1),
+        points: routePoints
+      });
+      localStorage.setItem('ciclo_sessions', JSON.stringify(sessions.slice(0, 30)));
+      alert('Recorrido guardado en el historial.');
+    });
+
+    function downloadGPX(session) {
+      const trkpts = session.points.map(p =>
+        `      <trkpt lat="${p.lat}" lon="${p.lon}"><ele>${p.ele}</ele><time>${p.time}</time></trkpt>`
+      ).join('\n');
+
+      const gpx = `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="CicloGPS" xmlns="http://www.topografix.com/GPX/1/1">
+  <trk>
+    <name>Ruta Bici ${session.date}</name>
+    <trkseg>
+${trkpts}
+    </trkseg>
+  </trk>
+</gpx>`;
+
+      const blob = new Blob([gpx], { type: 'application/gpx+xml' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ruta-bici-${session.id}.gpx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    const historyModal = document.getElementById('historyModal');
+    const historyList = document.getElementById('historyList');
+
+    document.getElementById('openHistoryBtn').addEventListener('click', () => {
+      const sessions = JSON.parse(localStorage.getItem('ciclo_sessions') || '[]');
+      historyList.innerHTML = sessions.length === 0
+        ? '<p style="color:#8e8e93;text-align:center;margin-top:40px;">Aún no hay recorridos guardados.</p>'
+        : '';
+
+      sessions.forEach(s => {
+        const div = document.createElement('div');
+        div.className = 'history-item';
+        div.innerHTML = `
+          <div>
+            <div class="history-meta">${s.date} · ${s.time}</div>
+            <div class="history-stats">${s.dist} km · Prom ${s.avg} km/h</div>
+          </div>
+          <button class="gpx-btn">GPX</button>
+        `;
+        div.querySelector('.gpx-btn').addEventListener('click', () => downloadGPX(s));
+        historyList.appendChild(div);
+      });
+      historyModal.classList.add('open');
+    });
+
+    document.getElementById('closeHistoryBtn').addEventListener('click', () => {
+      historyModal.classList.remove('open');
+    });
+
+    // Enganche inicial silencioso de GPS para tener señal lista al tocar Iniciar
+    if ('geolocation' in navigator) {
+      watchId = navigator.geolocation.watchPosition(onPositionUpdate, onPositionError, {
+        enableHighAccuracy: true,
+        maximumAge: 2000,
+        timeout: 10000
+      });
+    }
+  </script>
+</body>
+</html>
